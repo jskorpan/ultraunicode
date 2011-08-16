@@ -232,6 +232,19 @@ void test_ConvertToUTF16()
 	ASSERT (chOutput == 10);
 }
 
+void test_ConvertToUTF32()
+{
+	UUStr str;
+	ssize_t chOutput;
+	UCS32 output[128];
+
+	//FIXME: Test for overflow of output buffer here
+	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
+	ASSERT (uuConvertToUCS32(&str, output, sizeof(output), &chOutput) == 0);
+	uuFree(&str);
+	ASSERT (chOutput == 10);
+}
+
 
 
 
@@ -251,6 +264,7 @@ int main (int argc, char **argv)
 	//FIXME: Test surrogates pair here!
 	test_CreateFromUTF16Bytes();
 	test_ConvertToUTF16();
+	test_ConvertToUTF32();
 
 	return 0;
 }
