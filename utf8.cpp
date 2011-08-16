@@ -8,6 +8,8 @@
 #define UU_MUST_FREE (1 << 1)
 #define UU_HAS_CHARLENGTH (1 << 2)
 
+ssize_t UCS32ToUTF4 (UCS32	ucs4, UTF8 dest[4]);
+
 static UTF8 *uuAlloc(ssize_t byteLength)
 {
 	return (UTF8 *) malloc(byteLength);
@@ -45,6 +47,53 @@ int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength)
 	return 0;
 }
 
+
+int uuCreateFromWSTR(UUStr *str, const wchar_t *in, ssize_t charLength)
+{
+	return 0;
+}
+
+int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
+{
+
+	ssize_t estByteLength;
+	UTF8 *out;
+	UTF8 *ptr;
+	UCS32 ucs;
+
+	if (charLength == -1)
+	{
+		UTF16 *lptr = (UTF16 *) in;
+		charLength = 0;
+
+		while (*lptr != '\0')
+		{
+			lptr ++;
+			charLength ++;
+		}
+	}
+
+	estByteLength = charLength * 4;
+
+	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
+	out = uuAlloc(estByteLength + 1);
+	ptr = out;
+
+	while (*in != '\0')
+	{
+		ucs = (*in++);
+		ptr += UCS32ToUTF4(ucs, ptr);
+	}
+
+	(*ptr) = '\0';
+	str->charLength = charLength;
+	str->byteLength = (ssize_t) (ptr - out);
+	str->ptr = out;
+
+	return 0;
+}
+
+
 int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength)
 {
 	const UTF8 *cstrorg = cstr;
@@ -69,11 +118,6 @@ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t c
 	*(str->ptr + byteLength) = '\0';
 	
 	return 0;
-}
-
-int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength, ssize_t byteLength)
-{
-	return -1;
 }
 
 int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength)

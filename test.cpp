@@ -198,6 +198,12 @@ void test_IsEmpty()
 	uuFree(&strNotEmpty);
 }
 
+void test_CreateFromUTF16Bytes()
+{
+	UUStr str;
+	assert (uuCreateFromUTF16(&str, (const UTF16 *) L"Röksmörgås", 10) == 0);
+	assert (uuByteLength(&str) == 13);
+}
 
 
 int main (int argc, char **argv)
@@ -212,6 +218,7 @@ int main (int argc, char **argv)
 	test_Replace();
 	test_CharAt();
 	test_IsEmpty();
+	test_CreateFromUTF16Bytes();
 
 	return 0;
 }

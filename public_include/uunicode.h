@@ -28,7 +28,9 @@ typedef struct UUStr
 
 /*[X]*/ int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength);
 /*[X]*/ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength);
-/*[ ]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength, ssize_t byteLength);
+/*[ ]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength);
+/*[ ]*/ int uuCreateFromWSTR(UUStr *str, const wchar_t *in, ssize_t charLength);
+
 /*[ ]*/ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength);
 /*[ ]*/ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[ ]*/ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength);
