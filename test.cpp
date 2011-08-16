@@ -201,8 +201,33 @@ void test_IsEmpty()
 void test_CreateFromUTF16Bytes()
 {
 	UUStr str;
-	assert (uuCreateFromUTF16(&str, (const UTF16 *) L"Röksmörgås", 10) == 0);
-	assert (uuByteLength(&str) == 13);
+	UCS32 chr;
+	ssize_t bo = 0;
+	ASSERT (uuCreateFromUTF16(&str, (const UTF16 *) L"Räksmörgås", 10) == 0);
+	ASSERT (uuByteLength(&str) == 13);
+
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'R');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'ä');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'k');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L's');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'm');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'ö');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'r');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'g');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
+	ASSERT (chr == L'å');
+	ASSERT (uuReadNextChar(&str, &bo, &chr) == 0);
+	ASSERT (chr == L's');
+
+	uuFree(&str);
 }
 
 

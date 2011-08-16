@@ -4,6 +4,20 @@
 #include <malloc.h>
 #include <string.h>
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define __LITTLE_ENDIAN__
+#else
+
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define __BIG_ENDIAN__
+#endif
+
+#endif
+
+#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
+#error "Endianess not supported"
+#endif
+
 #define UU_HAS_BYTELENGTH (1 << 0)
 #define UU_MUST_FREE (1 << 1)
 #define UU_HAS_CHARLENGTH (1 << 2)
@@ -47,15 +61,73 @@ int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength)
 	return 0;
 }
 
-
-int uuCreateFromWSTR(UUStr *str, const wchar_t *in, ssize_t charLength)
+int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 {
+	ssize_t estByteLength;
+	UTF8 *out;
+	UTF8 *ptr;
+	UCS32 ucs;
+	int iSur = 0;
+	UTF16 surrugate;
+
+	if (charLength == -1)
+	{
+		UTF16 *lptr = (UTF16 *) in;
+		charLength = 0;
+
+		while (*lptr != '\0')
+		{
+			lptr ++;
+			charLength ++;
+		}
+	}
+
+	estByteLength = charLength * 4;
+
+	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
+	out = uuAlloc(estByteLength + 1);
+	ptr = out;
+
+	while (*in != '\0')
+	{
+		ucs = (*in++);
+
+		if (iSur == 0)
+		{
+			if ((ucs & 0xfc00) == 0xd800)
+			{
+				surrugate = ucs;
+				iSur ++;
+				continue;
+			}
+
+			iSur = 0;
+		}
+		else
+		{
+			if ((ucs & 0xfc00) != 0xdc00)
+			{
+				uuDelete(out);
+				return -1;
+			}
+
+			ucs = 0x10000 + (((ucs - 0xd800) << 10) | (surrugate - 0xdc00));
+		}
+
+		ptr += UCS32ToUTF4(ucs, ptr);
+	}
+
+	(*ptr) = '\0';
+	str->charLength = charLength;
+	str->byteLength = (ssize_t) (ptr - out);
+	str->ptr = out;
+
 	return 0;
 }
 
-int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
-{
 
+int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength)
+{
 	ssize_t estByteLength;
 	UTF8 *out;
 	UTF8 *ptr;
