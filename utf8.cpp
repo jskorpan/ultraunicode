@@ -199,12 +199,41 @@ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t b
 
 int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength)
 {
-	return -1;
+	//FIXME: Check for overflow of output
+	ssize_t bo = 0;
+	UCS32 ucs;
+	UTF16 *ptr = (UTF16 *) output;
+	
+	while ( (ucs = uuReadNextChar(str, &bo)))
+	{
+		if (ucs > 0x10000)
+		{
+			(*ptr++) = (ucs >> 10) + 0xd800;
+			(*ptr++) = (ucs & 0x3ff) + 0xdc00;
+		}
+		else
+		{
+			(*ptr++) = ucs;
+		}
+	}
+
+	(*outCharLength) = (ssize_t) (ptr - output);
+	return 0;
 }
 
 int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength)
 {
-	return -1;
+	//FIXME: Check for overflow of output
+	ssize_t bo = 0;
+	UCS32 *ptr = (UCS32 *) output;
+	
+	while (*ptr = uuReadNextChar(str, &bo))
+	{
+		ptr ++;
+	}
+
+	(*outCharLength) = (ssize_t) (ptr - output);
+	return 0;
 }
 
 void uuClone(UUStr *str, UUStr *input)
@@ -253,7 +282,7 @@ int uuSubString(UUStr *str, UUStr *input, ssize_t byteOffset, ssize_t byteLength
 	ssize_t co = 0;
 	UCS32 chr;
 
-	while (uuReadNextChar(input, &bo, &chr) && bo - byteOffset < byteLength)
+	while ((chr = uuReadNextChar(input, &bo)) && bo - byteOffset < byteLength)
 	{
 		co ++;
 	}
@@ -267,7 +296,7 @@ ssize_t uuOffsetToIndex(UUStr *str, ssize_t offset)
 	ssize_t charOffset = 0;
 	UCS32 output;
 
-	while (uuReadNextChar(str, &byteOffset, &output) && byteOffset < offset)
+	while ((output = uuReadNextChar(str, &byteOffset)) && byteOffset < offset)
 	{
 		charOffset ++;
 	}
@@ -318,7 +347,7 @@ UCS32 uuCharAt(UUStr *str, ssize_t byteOffset)
 {
 	UCS32 output;
 
-	if (uuReadNextChar(str, &byteOffset, &output) == -1)
+	if ( (output = uuReadNextChar(str, &byteOffset)) == -1)
 	{
 		return -1;
 	}
@@ -346,15 +375,16 @@ static const UTF8 g_utf8LengthLookup[256] =
 /* 0xf0 */ 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 1, 1
 };
 
-int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output)
+UCS32 uuReadNextChar(UUStr *str, ssize_t *byteOffset)
 {
 	UTF8 *ptr = (str->ptr + *byteOffset);
 	UTF8 len = g_utf8LengthLookup[*ptr];
+	UCS32 ucs;
 
 	switch (len)
 	{
 	case 1:
-		*output = *ptr;
+		ucs = *ptr;
 		(*byteOffset) ++;
 		break;
 
@@ -370,12 +400,12 @@ int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output)
 		in = *((UTF16 *) ptr);
 
 		#ifdef __LITTLE_ENDIAN__
-		*output = ((in & 0x1f) << 6) | ((in >> 8) & 0x3f);
+		ucs = ((in & 0x1f) << 6) | ((in >> 8) & 0x3f);
 		#else
-		*output = ((in & 0x1f00) >> 2) | (in & 0x3f);
+		ucs = ((in & 0x1f00) >> 2) | (in & 0x3f);
 		#endif
 
-		if (*output < 0x80)
+		if (ucs < 0x80)
 		{
 			//FIXME: Set error here!
 			return -1;
@@ -396,14 +426,14 @@ int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output)
 		#ifdef __LITTLE_ENDIAN__
 		in = *((UTF16 *) ptr);
 		in |= *((UTF8 *) ptr + 2) << 16;
-		*output = ((in & 0x0f) << 12) | ((in & 0x3f00) >> 2) | ((in & 0x3f0000) >> 16);
+		ucs = ((in & 0x0f) << 12) | ((in & 0x3f00) >> 2) | ((in & 0x3f0000) >> 16);
 		#else
 		in = *((UTF16 *) ptr) << 8;
 		in |= *((UTF8 *) ptr + 2);
-		*output = ((in & 0x0f0000) >> 4) | ((in & 0x3f00) >> 2) | (in & 0x3f);
+		ucs = ((in & 0x0f0000) >> 4) | ((in & 0x3f00) >> 2) | (in & 0x3f);
 		#endif
 
-		if (*output < 0x800)
+		if (ucs < 0x800)
 		{
 			return -1;
 		}
@@ -423,12 +453,12 @@ int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output)
 
 		#ifdef __LITTLE_ENDIAN__
 		in = *((UCS32 *) ptr);
-		*output = ((in & 0x07) << 18) | ((in & 0x3f00) << 4) | ((in & 0x3f0000) >> 10) | ((in & 0x3f000000) >> 24);
+		ucs = ((in & 0x07) << 18) | ((in & 0x3f00) << 4) | ((in & 0x3f0000) >> 10) | ((in & 0x3f000000) >> 24);
 		#else
 		in = *((UCS32 *) ptr);
-		*output = ((in & 0x07000000) >> 6) | ((in & 0x3f0000) >> 4) | ((in & 0x3f00) >> 2) | (in & 0x3f);
+		ucs = ((in & 0x07000000) >> 6) | ((in & 0x3f0000) >> 4) | ((in & 0x3f00) >> 2) | (in & 0x3f);
 		#endif
-		if (*output < 0x10000)
+		if (ucs < 0x10000)
 		{
 			return -1;
 		}
@@ -437,21 +467,17 @@ int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output)
 		break;
 	}
 
+	case 0:
+		return 0;
+
 	case 5:
 	case 6:
-	case 0:
 	default:
 		return -1;
 
-
 	}
 
-	if (*byteOffset == str->byteLength)
-	{
-		return 0;
-	}
-
-	return 1;
+	return ucs;
 }
 
 ssize_t uuCharLength(UUStr *str)
@@ -462,7 +488,7 @@ ssize_t uuCharLength(UUStr *str)
 		ssize_t co = 0;
 		UCS32 chr;
 
-		while (uuReadNextChar(str, &bo, &chr))
+		while ( (chr = uuReadNextChar(str, &bo)))
 		{
 			co ++;
 		}

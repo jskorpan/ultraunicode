@@ -18,6 +18,8 @@ typedef u_int16_t UTF16;
 typedef u_int32_t UCS32;
 #endif
 
+#include <wchar.h>
+
 typedef struct UUStr
 {
 	UTF8 *ptr;
@@ -30,8 +32,14 @@ typedef struct UUStr
 /*[X]*/ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength);
 /*[X]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength);
 
-/*[ ]*/ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength);
-/*[ ]*/ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength);
+#if WCHAR_MAX == 0xffff
+#define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUTF16(_str, (const UTF16 *) _in, _charLength)
+#else
+#define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUCS32(_str, (const UCS32 *) _in, _charLength)
+#endif
+
+/*[X]*/ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength);
+/*[X]*/ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[ ]*/ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[X]*/ int uuCompare(UUStr *str, UUStr *str2);
 /*[X]*/ void uuClone(UUStr *str, UUStr *input);
@@ -42,11 +50,11 @@ typedef struct UUStr
 /*[X]*/ int uuReplace(UUStr *str, UUStr *input, UUStr *what, UUStr *with);
 /*[X]*/ void uuAppend(UUStr *str, UUStr *first, UUStr *second);
 /*[X]*/ UCS32 uuCharAt(UUStr *str, ssize_t byteOffset);
-/*[X]*/ int uuReadNextChar(UUStr *str, ssize_t *byteOffset, UCS32 *output);
+/*[X]*/ UCS32 uuReadNextChar(UUStr *str, ssize_t *byteOffset);
 /*[X]*/ ssize_t uuCharLength(UUStr *str);
 /*[X]*/ ssize_t uuByteLength(UUStr *str);
 /*[X]*/ void uuFree(UUStr *str);
-/*[ ]*/ const char *uuToCSTR(UUStr *str);
+/*[ ]*/ const char *uuAsCSTR(UUStr *str);
 /*[X]*/ int uuIsEmpty(UUStr *str);
 /*[ ]*/ ssize_t uuRIndexOf(UUStr *str, UCS32 chr);
 /*[ ]*/ int uuStartsWith(UUStr *str, UUStr *with);

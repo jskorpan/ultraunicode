@@ -13,7 +13,6 @@ void testAssert(const char *expr, int line, const char *file)
 #define ASSERT(_x) if (!(_x)) testAssert(#_x, __LINE__, __FILE__);
 
 
-
 void test_CreateFromASCIIBytes()
 {
 	char TEST_STRING[] = "A nice test string";
@@ -201,34 +200,39 @@ void test_IsEmpty()
 void test_CreateFromUTF16Bytes()
 {
 	UUStr str;
-	UCS32 chr;
 	ssize_t bo = 0;
-	ASSERT (uuCreateFromUTF16(&str, (const UTF16 *) L"Räksmörgås", 10) == 0);
+	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
 	ASSERT (uuByteLength(&str) == 13);
 
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'R');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'ä');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'k');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L's');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'm');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'ö');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'r');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'g');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 1);
-	ASSERT (chr == L'å');
-	ASSERT (uuReadNextChar(&str, &bo, &chr) == 0);
-	ASSERT (chr == L's');
+	ASSERT (uuReadNextChar(&str, &bo) == L'R');
+	ASSERT (uuReadNextChar(&str, &bo) == L'ä');
+	ASSERT (uuReadNextChar(&str, &bo) == L'k');
+	ASSERT (uuReadNextChar(&str, &bo) == L's');
+	ASSERT (uuReadNextChar(&str, &bo) == L'm');
+	ASSERT (uuReadNextChar(&str, &bo) == L'ö');
+	ASSERT (uuReadNextChar(&str, &bo) == L'r');
+	ASSERT (uuReadNextChar(&str, &bo) == L'g');
+	ASSERT (uuReadNextChar(&str, &bo) == L'å');
+	ASSERT (uuReadNextChar(&str, &bo) == L's');
 
 	uuFree(&str);
 }
+
+
+void test_ConvertToUTF16()
+{
+	UUStr str;
+	ssize_t chOutput;
+	UTF16 output[128];
+
+	//FIXME: Test for overflow of output buffer here
+	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
+	ASSERT (uuConvertToUTF16(&str, output, sizeof(output), &chOutput) == 0);
+	uuFree(&str);
+	ASSERT (chOutput == 10);
+}
+
+
 
 
 int main (int argc, char **argv)
@@ -243,7 +247,10 @@ int main (int argc, char **argv)
 	test_Replace();
 	test_CharAt();
 	test_IsEmpty();
+
+	//FIXME: Test surrogates pair here!
 	test_CreateFromUTF16Bytes();
+	test_ConvertToUTF16();
 
 	return 0;
 }
