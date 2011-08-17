@@ -24,12 +24,17 @@
 
 ssize_t UCS32ToUTF4 (UCS32	ucs4, UTF8 dest[4]);
 
-static UTF8 *uuAlloc(ssize_t byteLength)
+static UTF8 *libRealloc(UTF8 *ptr, ssize_t byteLength)
+{
+	return (UTF8 *) realloc(ptr, byteLength);
+}
+
+static UTF8 *libAlloc(ssize_t byteLength)
 {
 	return (UTF8 *) malloc(byteLength);
 }
 
-static void uuDelete(UTF8 *ptr)
+static void libFree(UTF8 *ptr)
 {
 	free(ptr);
 }
@@ -85,7 +90,7 @@ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 	estByteLength = charLength * 4;
 
 	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
-	out = uuAlloc(estByteLength + 1);
+	out = libAlloc(estByteLength + 1);
 	ptr = out;
 
 	while (*in != '\0')
@@ -107,11 +112,12 @@ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 		{
 			if ((ucs & 0xfc00) != 0xdc00)
 			{
-				uuDelete(out);
+				libFree(out);
 				return -1;
 			}
 
 			ucs = 0x10000 + (((ucs - 0xd800) << 10) | (surrugate - 0xdc00));
+			iSur = 0;
 		}
 
 		ptr += UCS32ToUTF4(ucs, ptr);
@@ -148,7 +154,7 @@ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength)
 	estByteLength = charLength * 4;
 
 	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
-	out = uuAlloc(estByteLength + 1);
+	out = libAlloc(estByteLength + 1);
 	ptr = out;
 
 	while (*in != '\0')
@@ -185,7 +191,7 @@ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t c
 		str->flags |= UU_HAS_CHARLENGTH;
 	}
 
-	str->ptr = uuAlloc(byteLength + 1);
+	str->ptr = libAlloc(byteLength + 1);
 	memcpy (str->ptr, cstrorg, byteLength);
 	*(str->ptr + byteLength) = '\0';
 	
@@ -243,7 +249,7 @@ void uuClone(UUStr *str, UUStr *input)
 	str->flags = str->flags;
 	str->flags |= UU_MUST_FREE;
 
-	str->ptr = uuAlloc(input->byteLength + 1);
+	str->ptr = libAlloc(input->byteLength + 1);
 	memcpy(str->ptr, input->ptr, input->byteLength + 1);
 }
 
@@ -337,7 +343,7 @@ void uuAppend(UUStr *str, UUStr *first, UUStr *second)
 	str->charLength = first->charLength + second->charLength;
 	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
 
-	str->ptr = uuAlloc(str->byteLength + 1);
+	str->ptr = libAlloc(str->byteLength + 1);
 
 	memcpy (str->ptr, first->ptr, first->byteLength);
 	memcpy (str->ptr + first->byteLength, second->ptr, second->byteLength + 1);
@@ -510,7 +516,7 @@ void uuFree(UUStr *str)
 {
 	if (str->flags & UU_MUST_FREE)
 	{
-		uuDelete(str->ptr);
+		libFree(str->ptr);
 	}
 }
 
