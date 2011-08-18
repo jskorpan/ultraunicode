@@ -57,6 +57,7 @@ typedef struct UUStr
 /*[X]*/ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength);
 /*[X]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength);
 /*[X]*/ int uuCreateEmpty(UUStr *str, ssize_t byteCapacity);
+/*[X]*/ int uuCreateByClone(UUStr *str, UUStr *input);
 
 
 #if WCHAR_MAX == 0xffff
@@ -70,7 +71,6 @@ typedef struct UUStr
 /*[X]*/ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[X]*/ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[X]*/ int uuCompare(UUStr *str, UUStr *str2);
-/*[X]*/ int uuClone(UUStr *str, UUStr *input);
 /*[X]*/ ssize_t uuFindFirstOf(UUStr *str, UUStr *needle);
 /*[X]*/ ssize_t uuFindLastOf(UUStr *str, UUStr *needle);
 /*[X]*/ int uuSubString(UUStr *str, UUStr *input, ssize_t byteOffset, ssize_t byteLength);
@@ -78,6 +78,9 @@ typedef struct UUStr
 /*[X]*/ int uuReplace(UUStr *str, UUStr *what, UUStr *with);
 /*[X]*/ int uuAppend(UUStr *str, UUStr *second);
 /*[X]*/ int uuAppend(UUStr *str, const char *second);
+/*[ ]*/ int uuAppend(UUStr *str, long long value, int radix);
+
+
 /*[X]*/ void uuClear(UUStr *str);
 /*[X]*/ int uuAdjustCapacity(UUStr *str, ssize_t byteCapacity);
 /*[X]*/ UCS32 uuCharAt(UUStr *str, ssize_t byteOffset);

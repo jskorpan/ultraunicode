@@ -109,6 +109,23 @@ static ssize_t libStrlen(UTF8 *str)
 	return strlen( (const char *) str);
 }
 
+int uuCreateByClone(UUStr *str, UUStr *source)
+{
+	if (str->capacity < source->capacity)
+	{
+		if (uuAdjustCapacity(str, source->capacity) == -1)
+		{
+			return -1;
+		}
+	}
+	
+	str->byteLength = source->byteLength;
+
+	libStrcpy(str->ptr, source->ptr);
+	str->ptr[str->byteLength] = '\0';
+	return 0;
+}
+
 int uuCreateFromStack(UUStr *str, void *pstack, ssize_t byteLength)
 {
 	if (byteLength == -1)
@@ -308,23 +325,6 @@ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_
 	}
 
 	(*outCharLength) = (ssize_t) (ptr - output);
-	return 0;
-}
-
-int uuClone(UUStr *str, UUStr *source)
-{
-	if (str->capacity < source->capacity)
-	{
-		if (uuAdjustCapacity(str, source->capacity) == -1)
-		{
-			return -1;
-		}
-	}
-	
-	str->byteLength = source->byteLength;
-
-	libStrcpy(str->ptr, source->ptr);
-	str->ptr[str->byteLength] = '\0';
 	return 0;
 }
 
@@ -763,7 +763,7 @@ int uuTransform (UUStr *str, PFN_UUCHARFUNC pfn)
 		}
 	}
 
-
+	//FIXME: Get this one from TLS
 	UTF8 *obuff = libAlloc(neededCapacity + 1);
 	UTF8 *optr = obuff;
 
@@ -828,4 +828,61 @@ int uuValidate(UUStr *str)
 	}
 
 	return 0;
+}
+
+
+/*
+-9223372036854775807
+*/
+
+static void strreverse(UTF8* begin, UTF8* end)
+{
+	UTF8 aux;
+	while (end > begin)
+	aux = *end, *end-- = *begin, *begin++ = aux;
+}
+
+int uuAppend(UUStr *str, long long value, int radix)
+{
+	static const char radix16[] = "0123456789abcdef";
+
+	if (str->byteLength + 20 > str->capacity)
+	{
+		if (uuAdjustCapacity(str, str->byteLength + 20) == -1)
+		{
+			return -1;
+		}
+	}
+
+	UTF8 *wstr;
+	UINT64 uvalue = (value < 0) ? -value : value;
+	wstr = str->ptr + str->byteLength;
+	UTF8 *pstart = wstr;
+
+	// Conversion. Number is reversed.
+	switch (radix)
+	{
+	case 0:
+	case -1:
+	case 10:
+		do *wstr++ = (UTF8)(48 + (uvalue % 10ULL)); while(uvalue /= 10ULL);
+		if (value < 0) *wstr++ = '-';
+		break;
+
+	case 16:
+		do *wstr++ = radix16[uvalue % 16ULL]; while(uvalue /= 16ULL);
+		break;
+
+	default:
+		return -1;
+	}
+
+	// Reverse string
+	strreverse(pstart,wstr - 1);
+	str->byteLength += (wstr - pstart);
+
+	str->ptr[str->byteLength] = '\0';
+
+	return 0;
+
 }

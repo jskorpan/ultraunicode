@@ -92,7 +92,7 @@ void test_Clone()
 	UUSTR_STACK(str2, 1024);
 
 	ASSERT (uuCreateFromCSTR(&str1, "A nice test string", -1) == 0);
-	uuClone(&str2, &str1);
+	uuCreateByClone(&str2, &str1);
 	ASSERT (uuCompare(&str1, &str2) == 0);
 	uuFree(&str1);
 	uuFree(&str2);
@@ -424,6 +424,27 @@ void test_Transform()
 	uuFree(&str);
 }
 
+void test_AppendLong()
+{
+	UUSTR_STACK(pos, 1024);
+	UUSTR_STACK_CSTR(posRef, "31337");
+	ASSERT (uuAppend(&pos, 31337, 10) == 0);
+	ASSERT (uuCompare(&pos, &posRef) == 0);
+
+	UUSTR_STACK(neg, 1024);
+	UUSTR_STACK_CSTR(negRef, "pre-31337post");
+	ASSERT (uuAppend(&neg, "pre") == 0);
+	ASSERT (uuAppend(&neg, -31337, 10) == 0);
+	ASSERT (uuAppend(&neg, "post") == 0);
+
+	ASSERT (uuCompare(&neg, &negRef) == 0);
+
+	UUSTR_STACK(hex, 1024);
+	UUSTR_STACK_CSTR(hexRef, "3fa8c3a81");
+	ASSERT (uuAppend(&hex, 0x3fa8c3a81, 16) == 0);
+	ASSERT (uuCompare(&hex, &hexRef) == 0);
+}
+
 int main (int argc, char **argv)
 {
 	test_CreateFromASCIIBytes();
@@ -445,6 +466,7 @@ int main (int argc, char **argv)
 	test_ByteLength();
 	test_StartsWith();
 	test_Transform();
+	test_AppendLong();
 
 	//FIXME: Test surrogates pair here!
 	test_CreateFromWSTR();
