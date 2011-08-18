@@ -25,30 +25,63 @@ typedef struct UUStr
 	UTF8 *ptr;
 	ssize_t byteLength;
 	ssize_t charLength;
+	ssize_t capacity;
 	char flags;
 }UUStr;
+
+#define UU_HAS_BYTELENGTH (1 << 0)
+#define UU_MUST_FREE (1 << 1)
+#define UU_HAS_CHARLENGTH (1 << 2)
+
+#define UUSTR_STACK(_str, _capacity) \
+	UUStr _str; \
+	UTF8 _uuBuff##_str[_capacity + 1]; \
+	_str.ptr = _uuBuff##_str; \
+	_str.flags = UU_HAS_BYTELENGTH; \
+	_str.byteLength = 0; \
+	_str.capacity = _capacity; \
+
+#define UUSTR_STACK_CSTR(_str, _cstr) \
+	UUStr _str; \
+	UTF8 _uuBuff##_str[] = _cstr; \
+	_str.ptr = _uuBuff##_str; \
+	_str.flags = UU_HAS_BYTELENGTH; \
+	_str.byteLength = sizeof(_cstr) - 1; \
+	_str.capacity = sizeof(_cstr) - 1; \
+
+
+#define UUSTR_HEAP(_str, _byteCapacity) \
+	UUStr _str; \
+	uuCreateEmpty(&_str, _byteCapacity); \
 
 /*[X]*/ int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength);
 /*[X]*/ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength);
 /*[X]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength);
+/*[ ]*/ int uuCreateEmpty(UUStr *str, ssize_t byteCapacity);
+
 
 #if WCHAR_MAX == 0xffff
-#define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUTF16(_str, (const UTF16 *) _in, _charLength)
+/*[ ]*/ #define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUTF16(_str, (const UTF16 *) _in, _charLength)
 #else
-#define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUCS32(_str, (const UCS32 *) _in, _charLength)
+/*[ ]*/ #define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUCS32(_str, (const UCS32 *) _in, _charLength)
 #endif
 
+/*[ ]*/ int uuValidate(UUStr *str);
 /*[X]*/ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength);
 /*[X]*/ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength);
-/*[ ]*/ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength);
+/*[X]*/ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_t *outCharLength);
 /*[X]*/ int uuCompare(UUStr *str, UUStr *str2);
-/*[X]*/ void uuClone(UUStr *str, UUStr *input);
+/*[X]*/ int uuClone(UUStr *str, UUStr *input);
 /*[X]*/ ssize_t uuFind(UUStr *str, UUStr *needle);
 /*[ ]*/ ssize_t uuRFind(UUStr *str, UUStr *needle);
 /*[X]*/ int uuSubString(UUStr *str, UUStr *input, ssize_t byteOffset, ssize_t byteLength);
 /*[X]*/ ssize_t uuOffsetOf(UUStr *str, UCS32 chr);
-/*[X]*/ int uuReplace(UUStr *str, UUStr *input, UUStr *what, UUStr *with);
-/*[X]*/ void uuAppend(UUStr *str, UUStr *first, UUStr *second);
+/*[X]*/ int uuReplace(UUStr *str, UUStr *what, UUStr *with);
+/*[X]*/ int uuAppend(UUStr *str, UUStr *second);
+/*[ ]*/ int uuAppend(UUStr *str, const char *second);
+/*[ ]*/ void uuClear(UUStr *str);
+/*[ ]*/ int uuAdjustCapacity(UUStr *str, ssize_t byteCapacity);
+
 /*[X]*/ UCS32 uuCharAt(UUStr *str, ssize_t byteOffset);
 /*[X]*/ UCS32 uuReadNextChar(UUStr *str, ssize_t *byteOffset);
 /*[X]*/ ssize_t uuCharLength(UUStr *str);

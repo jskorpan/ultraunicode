@@ -18,10 +18,6 @@
 #error "Endianess not supported"
 #endif
 
-#define UU_HAS_BYTELENGTH (1 << 0)
-#define UU_MUST_FREE (1 << 1)
-#define UU_HAS_CHARLENGTH (1 << 2)
-
 ssize_t UCS32ToUTF4 (UCS32	ucs4, UTF8 dest[4]);
 
 static UTF8 *libRealloc(UTF8 *ptr, ssize_t byteLength)
@@ -39,6 +35,31 @@ static void libFree(UTF8 *ptr)
 	free(ptr);
 }
 
+static void libStrcpy(UTF8 *dst, UTF8 *src)
+{
+	while (*src != '\0')
+	{
+		(*dst++) = (*src++);
+	}
+}
+
+static void libStrncpy(UTF8 *dst, UTF8 *src, ssize_t len)
+{
+	ssize_t i = 0;
+	while (*src != '\0' && i < len)
+	{
+		(*dst++) = (*src++);
+		i ++;
+	}
+}
+
+
+static void libMemmove(UTF8 *dst, UTF8 *src, ssize_t len)
+{
+	memmove (dst, src, len);
+}
+
+
 static UTF8 *uuMemMem(UTF8 *haystack, UTF8 *needle)
 {
 	return (UTF8 *) strstr( (const char *) haystack, (const char *) needle);
@@ -49,21 +70,30 @@ static UTF8 *uuRMemMem(UTF8 *haystack, UTF8 *needle)
 	return NULL;
 }
 
-int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength)
+static ssize_t libStrlen(UTF8 *str)
 {
-	const char *cstrorg = cstr;
+	return strlen( (const char *) str);
+}
 
+int uuCreateFromStack(UUStr *str, void *pstack, ssize_t byteLength)
+{
 	if (byteLength == -1)
 	{
-		byteLength = 0;
-		while ((*cstr++) != '\0') byteLength ++;
+		return -1;
 	}
 
+	str->capacity = byteLength;
 	str->byteLength = byteLength;
 	str->flags = UU_HAS_BYTELENGTH;
-	str->ptr = (UTF8 *) cstrorg;
+	str->ptr = (UTF8 *) pstack;
 
 	return 0;
+}
+
+
+int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength)
+{
+	return uuCreateFromUTF8(str, (const UTF8 *) cstr, byteLength, -1);
 }
 
 int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
@@ -126,6 +156,7 @@ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 	(*ptr) = '\0';
 	str->charLength = charLength;
 	str->byteLength = (ssize_t) (ptr - out);
+	str->capacity = estByteLength;
 	str->ptr = out;
 
 	return 0;
@@ -166,10 +197,12 @@ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength)
 	(*ptr) = '\0';
 	str->charLength = charLength;
 	str->byteLength = (ssize_t) (ptr - out);
+	str->capacity = estByteLength;
 	str->ptr = out;
 
 	return 0;
 }
+
 
 
 int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength)
@@ -194,14 +227,22 @@ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t c
 	str->ptr = libAlloc(byteLength + 1);
 	memcpy (str->ptr, cstrorg, byteLength);
 	*(str->ptr + byteLength) = '\0';
-	
+	str->capacity = byteLength;
+
 	return 0;
 }
 
-int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength)
+int uuCreateEmpty(UUStr *str, ssize_t byteCapacity)
 {
-	return -1;
+	str->byteLength = 0;
+	str->capacity = byteCapacity;
+	str->ptr = libAlloc(byteCapacity + 1);
+	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
+	str->ptr[0] = '\0';
+
+	return 0;
 }
+
 
 int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_t *outCharLength)
 {
@@ -223,6 +264,8 @@ int uuConvertToUTF16(UUStr *str, const UTF16 *output, ssize_t byteLength, ssize_
 		}
 	}
 
+	(*ptr) = '\0';
+
 	(*outCharLength) = (ssize_t) (ptr - output);
 	return 0;
 }
@@ -242,15 +285,27 @@ int uuConvertToUCS32(UUStr *str, const UCS32 *output, ssize_t byteLength, ssize_
 	return 0;
 }
 
-void uuClone(UUStr *str, UUStr *input)
+int uuClone(UUStr *str, UUStr *source)
 {
-	str->byteLength = input->byteLength;
-	str->charLength = input->charLength;
-	str->flags = str->flags;
-	str->flags |= UU_MUST_FREE;
+	if (str->capacity < source->capacity)
+	{
+		if (uuAdjustCapacity(str, source->capacity) == -1)
+		{
+			return -1;
+		}
+	}
+	
+	str->byteLength = source->byteLength;
 
-	str->ptr = libAlloc(input->byteLength + 1);
-	memcpy(str->ptr, input->ptr, input->byteLength + 1);
+	if (source->flags & UU_HAS_CHARLENGTH)
+	{
+		str->charLength = source->charLength;
+		str->flags |= UU_HAS_CHARLENGTH;
+	}
+
+	libStrcpy(str->ptr, source->ptr);
+	str->ptr[str->byteLength] = '\0';
+	return 0;
 }
 
 ssize_t uuFind(UUStr *str, UUStr *needle)
@@ -310,44 +365,98 @@ ssize_t uuOffsetToIndex(UUStr *str, ssize_t offset)
 	return charOffset;
 }
 
-int uuReplace(UUStr *str, UUStr *input, UUStr *what, UUStr *with)
+int uuAdjustCapacity(UUStr *str, ssize_t byteCapacity)
 {
-	UUStr left;
-	UUStr right;
-	UUStr part;
-
-	ssize_t bo;
-	bo = uuFind(input, what);
-
-	if (bo == -1)
+	if (str->capacity >= byteCapacity)
 	{
+		return 0;
+	}
+
+	if (!(str->flags & UU_MUST_FREE))
+	{
+		// We refuse to grow strings on the stack
 		return -1;
 	}
 
-	uuSubString(&left, input, 0, bo);
-	uuSubString(&right, input, bo + uuByteLength(what), uuByteLength(input) - uuByteLength(with));
-
-	uuAppend(&part, &left, with);
-	uuAppend(str, &part, &right);
-
-	uuFree(&part);
-	uuFree(&left);
-	uuFree(&right);
-	
+	str->ptr = libRealloc(str->ptr, byteCapacity + 1);
+	str->capacity = byteCapacity;
 	return 0;
 }
 
-void uuAppend(UUStr *str, UUStr *first, UUStr *second)
+int uuReplace(UUStr *str, UUStr *what, UUStr *with)
 {
-	str->byteLength = first->byteLength + second->byteLength;
-	str->charLength = first->charLength + second->charLength;
-	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
+	ssize_t neededCapacity = str->byteLength - what->byteLength + with->byteLength;
+	assert (neededCapacity >= 0);
 
-	str->ptr = libAlloc(str->byteLength + 1);
+	UTF8 *ptr = uuMemMem(str->ptr, what->ptr);
+	UTF8 *basePtr = str->ptr;
 
-	memcpy (str->ptr, first->ptr, first->byteLength);
-	memcpy (str->ptr + first->byteLength, second->ptr, second->byteLength + 1);
+	if (ptr == NULL)
+	{
+		return 0;
+	}
+
+	if (str->capacity < neededCapacity)
+	{
+		if (uuAdjustCapacity(str, neededCapacity) == -1)
+		{
+			return -1;
+		}
+		
+		ptr = str->ptr + (ptr - basePtr);
+	}
+
+	ssize_t bytesToMove;
+
+	bytesToMove = (ptr + what->byteLength) - str->ptr;
+	bytesToMove = str->byteLength - bytesToMove;
+
+	libMemmove (
+		ptr + with->byteLength,
+		ptr + what->byteLength, bytesToMove);
+
+	libStrcpy (ptr, with->ptr);
+
+	str->ptr[neededCapacity] = '\0';
+
+	// Length has changed
+	str->flags &= ~UU_HAS_CHARLENGTH;
+
+	return 0;
 }
+
+int uuAppend(UUStr *str, UUStr *second)
+{
+	ssize_t neededCapacity = str->byteLength + second->byteLength;
+
+	if (str->capacity < neededCapacity)
+	{
+		if (uuAdjustCapacity(str, neededCapacity) == -1)
+		{
+			return -1;
+		}
+	}
+
+	libStrcpy (str->ptr + str->byteLength, second->ptr);
+
+	str->byteLength = neededCapacity;
+	str->ptr[str->byteLength] = '\0';
+
+	// Length has changed
+	str->flags &= ~UU_HAS_CHARLENGTH;
+
+	return 0;
+}
+
+int uuAppend(UUStr *str, const char *second)
+{
+	UUStr temp;
+	temp.byteLength = libStrlen( (UTF8 *) second);
+	temp.ptr = (UTF8 *) second;
+	
+	return uuAppend(str, &temp);
+}
+
 
 UCS32 uuCharAt(UUStr *str, ssize_t byteOffset)
 {
@@ -522,7 +631,7 @@ void uuFree(UUStr *str)
 
 const char *uuToCSTR(UUStr *str)
 {
-	return NULL;
+	return (const char *) str->ptr;
 }
 
 int uuIsEmpty(UUStr *str)
@@ -609,4 +718,10 @@ void uuToLower(UUStr *str, UUStr *input)
 
 void uuToUpper(UUStr *str, UUStr *input)
 {
+}
+
+void uuClear(UUStr *str)
+{
+	str->byteLength = 0;
+	str->ptr[0] = '\0';
 }

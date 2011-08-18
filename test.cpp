@@ -88,7 +88,7 @@ void test_Compare()
 void test_Clone()
 {
 	UUStr str1;
-	UUStr str2;
+	UUSTR_STACK(str2, 1024);
 
 	ASSERT (uuCreateFromCSTR(&str1, "A nice test string", -1) == 0);
 	uuClone(&str2, &str1);
@@ -146,20 +146,18 @@ void test_Replace()
 	UUStr input;
 	UUStr what;
 	UUStr with;
-	UUStr output;
 	UUStr expected;
 
 	ASSERT (uuCreateFromCSTR(&input, "A nice test string", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&expected, "A nice tasy pizza string", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&what, "test", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&with, "tasy pizza", -1) == 0);
-	ASSERT (uuReplace(&output, &input, &what, &with) == 0);
-	ASSERT (uuCompare(&output, &expected) == 0);
+	ASSERT (uuReplace(&input, &what, &with) == 0);
+	ASSERT (uuCompare(&input, &expected) == 0);
 
 	uuFree(&input);
 	uuFree(&what);
 	uuFree(&with);
-	uuFree(&output);
 	uuFree(&expected);
 }
 
@@ -230,6 +228,19 @@ void test_ConvertToUTF16()
 	ASSERT (uuConvertToUTF16(&str, output, sizeof(output), &chOutput) == 0);
 	uuFree(&str);
 	ASSERT (chOutput == 10);
+
+	ASSERT(output[0] == L'R');
+	ASSERT(output[1] == L'ä');
+	ASSERT(output[2] == L'k');
+	ASSERT(output[3] == L's');
+	ASSERT(output[4] == L'm');
+	ASSERT(output[5] == L'ö');
+	ASSERT(output[6] == L'r');
+	ASSERT(output[7] == L'g');
+	ASSERT(output[8] == L'å');
+	ASSERT(output[9] == L's');
+	ASSERT(output[10] == L'\0');
+
 }
 
 void test_ConvertToUTF32()
@@ -243,6 +254,69 @@ void test_ConvertToUTF32()
 	ASSERT (uuConvertToUCS32(&str, output, sizeof(output), &chOutput) == 0);
 	uuFree(&str);
 	ASSERT (chOutput == 10);
+
+	ASSERT(output[0] == L'R');
+	ASSERT(output[1] == L'ä');
+	ASSERT(output[2] == L'k');
+	ASSERT(output[3] == L's');
+	ASSERT(output[4] == L'm');
+	ASSERT(output[5] == L'ö');
+	ASSERT(output[6] == L'r');
+	ASSERT(output[7] == L'g');
+	ASSERT(output[8] == L'å');
+	ASSERT(output[9] == L's');
+	ASSERT(output[10] == L'\0');
+}
+
+void test_CreateEmpty()
+{
+	UUStr str;
+
+	uuCreateEmpty(&str, 512);
+
+	ASSERT(uuByteLength(&str) == 0);
+	ASSERT(uuCharLength(&str) == 0);
+
+	uuAppend(&str, "John");
+
+	ASSERT(uuByteLength(&str) == 4);
+	ASSERT(uuCharLength(&str) == 4);
+
+	uuFree(&str);
+}
+
+void test_Append()
+{
+	UUSTR_STACK_CSTR(str1, "John");
+	UUSTR_STACK_CSTR(str2, " ");
+	UUSTR_STACK_CSTR(str3, "Doe");
+	UUSTR_STACK(total, 1024);
+	UUSTR_STACK_CSTR(expected, "John Doe");
+
+	ASSERT(uuAppend(&total, &str1) == 0);
+	ASSERT(uuAppend(&total, &str2) == 0);
+	ASSERT(uuAppend(&total, &str3) == 0);
+	ASSERT(uuCompare(&total, &expected) == 0);
+
+	uuClear(&total);
+
+	ASSERT(uuAppend(&total, "John") == 0);
+	ASSERT(uuAppend(&total, " ") == 0);
+	ASSERT(uuAppend(&total, "Doe") == 0);
+	ASSERT(uuCompare(&total, &expected) == 0);
+
+	uuFree(&str1);
+	uuFree(&str2);
+	uuFree(&str3);
+	uuFree(&total);
+
+	UUSTR_STACK(refuseTotal, 1);
+	ASSERT(uuAppend(&refuseTotal, "Z") == 0);
+	ASSERT(uuAppend(&refuseTotal, "John") == -1);
+	uuFree(&refuseTotal);
+
+
+
 }
 
 
@@ -260,6 +334,8 @@ int main (int argc, char **argv)
 	test_Replace();
 	test_CharAt();
 	test_IsEmpty();
+	test_Append();
+	test_CreateEmpty();
 
 	//FIXME: Test surrogates pair here!
 	test_CreateFromUTF16Bytes();
