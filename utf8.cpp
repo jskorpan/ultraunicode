@@ -119,7 +119,7 @@ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 
 	estByteLength = charLength * 4;
 
-	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
+	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
 	out = libAlloc(estByteLength + 1);
 	ptr = out;
 
@@ -154,7 +154,6 @@ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength)
 	}
 
 	(*ptr) = '\0';
-	str->charLength = charLength;
 	str->byteLength = (ssize_t) (ptr - out);
 	str->capacity = estByteLength;
 	str->ptr = out;
@@ -184,7 +183,7 @@ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength)
 
 	estByteLength = charLength * 4;
 
-	str->flags = UU_HAS_BYTELENGTH | UU_HAS_CHARLENGTH | UU_MUST_FREE;
+	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
 	out = libAlloc(estByteLength + 1);
 	ptr = out;
 
@@ -195,7 +194,6 @@ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength)
 	}
 
 	(*ptr) = '\0';
-	str->charLength = charLength;
 	str->byteLength = (ssize_t) (ptr - out);
 	str->capacity = estByteLength;
 	str->ptr = out;
@@ -217,12 +215,6 @@ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t c
 
 	str->byteLength = byteLength;
 	str->flags = UU_HAS_BYTELENGTH | UU_MUST_FREE;
-
-	if (charLength != -1)
-	{
-		str->charLength = charLength;
-		str->flags |= UU_HAS_CHARLENGTH;
-	}
 
 	str->ptr = libAlloc(byteLength + 1);
 	memcpy (str->ptr, cstrorg, byteLength);
@@ -296,12 +288,6 @@ int uuClone(UUStr *str, UUStr *source)
 	}
 	
 	str->byteLength = source->byteLength;
-
-	if (source->flags & UU_HAS_CHARLENGTH)
-	{
-		str->charLength = source->charLength;
-		str->flags |= UU_HAS_CHARLENGTH;
-	}
 
 	libStrcpy(str->ptr, source->ptr);
 	str->ptr[str->byteLength] = '\0';
@@ -419,9 +405,6 @@ int uuReplace(UUStr *str, UUStr *what, UUStr *with)
 
 	str->ptr[neededCapacity] = '\0';
 
-	// Length has changed
-	str->flags &= ~UU_HAS_CHARLENGTH;
-
 	return 0;
 }
 
@@ -441,9 +424,6 @@ int uuAppend(UUStr *str, UUStr *second)
 
 	str->byteLength = neededCapacity;
 	str->ptr[str->byteLength] = '\0';
-
-	// Length has changed
-	str->flags &= ~UU_HAS_CHARLENGTH;
 
 	return 0;
 }
@@ -597,22 +577,16 @@ UCS32 uuReadNextChar(UUStr *str, ssize_t *byteOffset)
 
 ssize_t uuCharLength(UUStr *str)
 {
-	if (!(str->flags & UU_HAS_CHARLENGTH))
+	ssize_t bo = 0;
+	ssize_t co = 0;
+	UCS32 chr;
+
+	while ( (chr = uuReadNextChar(str, &bo)))
 	{
-		ssize_t bo = 0;
-		ssize_t co = 0;
-		UCS32 chr;
-
-		while ( (chr = uuReadNextChar(str, &bo)))
-		{
-			co ++;
-		}
-
-		str->charLength = co;
-		str->flags |= UU_HAS_CHARLENGTH;
+		co ++;
 	}
 
-	return str->charLength;
+	return co;
 }
 
 ssize_t uuByteLength(UUStr *str)

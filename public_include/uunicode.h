@@ -24,14 +24,12 @@ typedef struct UUStr
 {
 	UTF8 *ptr;
 	ssize_t byteLength;
-	ssize_t charLength;
 	ssize_t capacity;
 	char flags;
 }UUStr;
 
 #define UU_HAS_BYTELENGTH (1 << 0)
 #define UU_MUST_FREE (1 << 1)
-#define UU_HAS_CHARLENGTH (1 << 2)
 
 #define UUSTR_STACK(_str, _capacity) \
 	UUStr _str; \
@@ -48,7 +46,6 @@ typedef struct UUStr
 	_str.flags = UU_HAS_BYTELENGTH; \
 	_str.byteLength = sizeof(_cstr) - 1; \
 	_str.capacity = sizeof(_cstr) - 1; \
-
 
 #define UUSTR_HEAP(_str, _byteCapacity) \
 	UUStr _str; \
