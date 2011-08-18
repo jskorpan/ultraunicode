@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <malloc.h>
 #include <string.h>
-#include <stdio.h>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define __LITTLE_ENDIAN__
@@ -771,8 +770,6 @@ int uuTransform (UUStr *str, PFN_UUCHARFUNC pfn)
 	while ( (inchr = uuReadNextChar (str, &bo)))
 	{
 		outchr = pfn(inchr);
-
-		fprintf (stderr, "%d -> %d\n", inchr, outchr);
 
 		UTF8 *utfptr = utf;
 		ssize_t outLen = UCS32ToUTF4(outchr, utf);
