@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdio.h>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define __LITTLE_ENDIAN__
@@ -35,6 +36,11 @@ static void libFree(UTF8 *ptr)
 	free(ptr);
 }
 
+static int libMemcmp(UTF8 *c1, UTF8 *c2, ssize_t len)
+{
+	return memcmp(c1, c2, len);
+}
+
 static void libStrcpy(UTF8 *dst, UTF8 *src)
 {
 	while (*src != '\0')
@@ -60,15 +66,44 @@ static void libMemmove(UTF8 *dst, UTF8 *src, ssize_t len)
 }
 
 
-static UTF8 *uuMemMem(UTF8 *haystack, UTF8 *needle)
+static UTF8 *libStrrstr(UTF8 *haystack, ssize_t hsLength, UTF8 *needle, ssize_t neLength)
+{
+	if (hsLength < neLength)
+	{
+		return NULL;
+	}
+
+	UTF8 *ptr = haystack + hsLength;
+	ptr -= neLength;
+
+	while (ptr >= haystack)
+	{
+		UTF8 *cs1 = ptr;
+		UTF8 *cs2 = needle;
+
+		while (*cs1 == *cs2 && *cs2 != '\0')
+		{
+			cs1 ++;
+			cs2 ++;
+		}
+
+		if (cs2 - needle == neLength)
+		{
+			return ptr;
+		}
+		
+		ptr --;
+
+	}
+
+	return NULL;
+}
+
+static UTF8 *libStrstr(UTF8 *haystack, UTF8 *needle)
 {
 	return (UTF8 *) strstr( (const char *) haystack, (const char *) needle);
 }
 
-static UTF8 *uuRMemMem(UTF8 *haystack, UTF8 *needle)
-{
-	return NULL;
-}
 
 static ssize_t libStrlen(UTF8 *str)
 {
@@ -294,9 +329,9 @@ int uuClone(UUStr *str, UUStr *source)
 	return 0;
 }
 
-ssize_t uuFind(UUStr *str, UUStr *needle)
+ssize_t uuFindFirstOf(UUStr *str, UUStr *needle)
 {
-	UTF8 *ptr = uuMemMem (str->ptr, needle->ptr);
+	UTF8 *ptr = libStrstr (str->ptr, needle->ptr);
 
 	if (ptr == NULL)
 	{
@@ -306,9 +341,13 @@ ssize_t uuFind(UUStr *str, UUStr *needle)
 	return (ssize_t) (ptr - str->ptr);
 }
 
-ssize_t uuRFind(UUStr *str, UUStr *needle)
+ssize_t uuFindLastOf(UUStr *str, UUStr *needle)
 {
-	UTF8 *ptr = uuRMemMem (str->ptr, needle->ptr);
+	UTF8 *ptr = libStrrstr (
+		str->ptr,
+		str->byteLength, 
+		needle->ptr,
+		needle->byteLength);
 
 	if (ptr == NULL)
 	{
@@ -374,7 +413,7 @@ int uuReplace(UUStr *str, UUStr *what, UUStr *with)
 	ssize_t neededCapacity = str->byteLength - what->byteLength + with->byteLength;
 	assert (neededCapacity >= 0);
 
-	UTF8 *ptr = uuMemMem(str->ptr, what->ptr);
+	UTF8 *ptr = libStrstr(str->ptr, what->ptr);
 	UTF8 *basePtr = str->ptr;
 
 	if (ptr == NULL)
@@ -568,6 +607,7 @@ UCS32 uuReadNextChar(UUStr *str, ssize_t *byteOffset)
 	case 5:
 	case 6:
 	default:
+		//FIXME: Kind if a surprise for the caller?
 		return -1;
 
 	}
@@ -587,12 +627,6 @@ ssize_t uuCharLength(UUStr *str)
 	}
 
 	return co;
-}
-
-ssize_t uuByteLength(UUStr *str)
-{
-	assert (str->flags & UU_HAS_BYTELENGTH);
-	return str->byteLength;
 }
 
 void uuFree(UUStr *str)
@@ -652,21 +686,32 @@ static ssize_t UCS32ToUTF4 (UCS32	ucs4, UTF8 dest[4])
 	return d - dest;
 }
 
-ssize_t uuOffsetOf(UUStr *str, UCS32 chr)
-{
-	UTF8 utf[5];
-	UTF8 *ptr;
-	ssize_t utfLen;
-	utfLen = UCS32ToUTF4(chr, utf);
 
-	if (utfLen == -1)
+ssize_t uuFirstOffsetOf(UUStr *str, UCS32 chr)
+{
+	UTF8 needle[5];
+	ssize_t len = UCS32ToUTF4(chr, needle);
+
+	needle[len] = '\0';
+
+	UTF8 *ptr = libStrstr (str->ptr, needle);
+
+	if (ptr == NULL)
 	{
 		return -1;
 	}
 
-	utf[utfLen] = '\0';
+	return (ssize_t) (ptr - str->ptr);
+}
 
-	ptr = uuMemMem(str->ptr, utf);
+ssize_t uuLastOffsetOf(UUStr *str, UCS32 chr)
+{
+	UTF8 needle[5];
+	ssize_t len = UCS32ToUTF4(chr, needle);
+
+	needle[len] = '\0';
+
+	UTF8 *ptr = libStrrstr (str->ptr, str->byteLength, needle, len);
 
 	if (ptr == NULL)
 	{
@@ -683,19 +728,107 @@ ssize_t uuRIndexOf(UUStr *str, UCS32 chr)
 
 int uuStartsWith(UUStr *str, UUStr *with)
 {
-	return -1;
-}
+	if (str->byteLength < with->byteLength)
+	{
+		return 0;
+	}
 
-void uuToLower(UUStr *str, UUStr *input)
-{
-}
+	if (libMemcmp(str->ptr, with->ptr, with->byteLength) == 0)
+	{
+		return 1;
+	}
 
-void uuToUpper(UUStr *str, UUStr *input)
-{
+	return 0;
 }
 
 void uuClear(UUStr *str)
 {
 	str->byteLength = 0;
 	str->ptr[0] = '\0';
+}
+
+int uuTransform (UUStr *str, PFN_UUCHARFUNC pfn)
+{
+	UTF8 utf[4];
+	UCS32 inchr;
+	UCS32 outchr;
+	ssize_t bo = 0;
+
+	ssize_t neededCapacity = str->byteLength * 4;
+
+	if (!(str->flags & UU_MUST_FREE))
+	{
+		if (str->capacity < neededCapacity)
+		{
+			return -1;
+		}
+	}
+
+
+	UTF8 *obuff = libAlloc(neededCapacity + 1);
+	UTF8 *optr = obuff;
+
+	while ( (inchr = uuReadNextChar (str, &bo)))
+	{
+		outchr = pfn(inchr);
+
+		fprintf (stderr, "%d -> %d\n", inchr, outchr);
+
+		UTF8 *utfptr = utf;
+		ssize_t outLen = UCS32ToUTF4(outchr, utf);
+
+		switch (outLen)
+		{
+			case 4: (*optr++) = (*utfptr++);
+			case 3: (*optr++) = (*utfptr++);
+			case 2: (*optr++) = (*utfptr++);
+			case 1: (*optr++) = (*utfptr++); break;
+			default:
+				libFree (obuff);
+				return -1; break;
+		}
+	}
+
+	*optr = '\0';
+
+	ssize_t newLen = (optr - obuff);
+
+	if (str->flags & UU_MUST_FREE)
+	{
+		libFree (str->ptr);
+		str->byteLength = newLen;
+		str->capacity = neededCapacity;
+		str->ptr = obuff;
+	}
+	else
+	{
+		libStrcpy (str->ptr, obuff);
+		str->ptr[newLen] = '\0';
+		libFree(obuff);
+	}
+
+
+	return 0;
+}
+
+int uuValidate(UUStr *str)
+{
+	ssize_t bo = 0;
+
+	if (!(str->flags & UU_HAS_BYTELENGTH))
+	{
+		return 0;
+	}
+
+	while (true)
+	{
+		switch (uuReadNextChar(str, &bo))
+		{
+		case 0: return 1;
+		case -1: return 0;
+		default: break;
+		}
+	}
+
+	return 0;
 }

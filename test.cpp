@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 void testAssert(const char *expr, int line, const char *file)
 {
@@ -97,19 +98,40 @@ void test_Clone()
 	uuFree(&str2);
 }
 
-void test_Find()
+void test_FindFirstOf()
 {
 	UUStr haystack;
 	UUStr needleFound;
+	UUStr needleFound2;
 	UUStr needleNotFound;
 
-	ASSERT (uuCreateFromCSTR(&haystack, "A nice test string", -1) == 0);
+	ASSERT (uuCreateFromCSTR(&haystack, "A test nice test string", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&needleFound, "test", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&needleNotFound, "cookie", -1) == 0);
+	ASSERT (uuCreateFromCSTR(&needleFound2, "string", -1) == 0);
 
-	ASSERT (uuFind(&haystack, &needleFound) == 7);
-	ASSERT (uuFind(&haystack, &needleNotFound) == -1);
+	ASSERT (uuFindFirstOf(&haystack, &needleFound) == 2);
+	ASSERT (uuFindFirstOf(&haystack, &needleFound2) == 17);
+	ASSERT (uuFindFirstOf(&haystack, &needleNotFound) == -1);
 }
+
+void test_FindLastOf()
+{
+	UUStr haystack;
+	UUStr needleFound;
+	UUStr needleFound2;
+	UUStr needleNotFound;
+
+	ASSERT (uuCreateFromCSTR(&haystack, "A test nice test string", -1) == 0);
+	ASSERT (uuCreateFromCSTR(&needleFound, "test", -1) == 0);
+	ASSERT (uuCreateFromCSTR(&needleFound2, "string", -1) == 0);
+	ASSERT (uuCreateFromCSTR(&needleNotFound, "cookie", -1) == 0);
+
+	ASSERT (uuFindLastOf(&haystack, &needleFound) == 12);
+	ASSERT (uuFindLastOf(&haystack, &needleFound2) == 17);
+	ASSERT (uuFindLastOf(&haystack, &needleNotFound) == -1);
+}
+
 
 void test_SubString()
 {
@@ -122,7 +144,7 @@ void test_SubString()
 	ASSERT (uuCreateFromCSTR(&needle, "test", -1) == 0);
 	ASSERT (uuCreateFromCSTR(&cmpstr, "test str", -1) == 0);
 
-	ssize_t offset = uuFind(&haystack, &needle);
+	ssize_t offset = uuFindFirstOf(&haystack, &needle);
 
 	ASSERT (uuSubString(&substr, &haystack, offset, 8) == 0);
 	ASSERT (uuCompare(&substr, &cmpstr) == 0);
@@ -133,13 +155,22 @@ void test_SubString()
 	uuFree(&cmpstr);
 }
 
-void test_OffsetOf()
+void test_FirstOffsetOf()
 {
 	UUStr haystack;
-	ASSERT (uuCreateFromCSTR(&haystack, "A nice tZst string", -1) == 0);
-	ASSERT (uuOffsetOf(&haystack, 0x0000005a) == 8);
+	ASSERT (uuCreateFromCSTR(&haystack, "A nice tZst ZstringZ", -1) == 0);
+	ASSERT (uuFirstOffsetOf(&haystack, 'Z') == 8);
 	uuFree (&haystack);
 }
+
+void test_LastOffsetOf()
+{
+	UUStr haystack;
+	ASSERT (uuCreateFromCSTR(&haystack, "ZA nice tZst string", -1) == 0);
+	ASSERT (uuLastOffsetOf(&haystack, 'Z') == 9);
+	uuFree (&haystack);
+}
+
 
 void test_Replace()
 {
@@ -169,13 +200,13 @@ void test_CharAt()
 	ssize_t offset3;
 	ASSERT (uuCreateFromCSTR(&str1, "A nice test string", -1) == 0);
 
-	offset1 = uuOffsetOf(&str1, 'n');
+	offset1 = uuFirstOffsetOf(&str1, 'n');
 	ASSERT (uuCharAt(&str1, offset1) == 'n');
 
-	offset2 = uuOffsetOf(&str1, 't');
+	offset2 = uuFirstOffsetOf(&str1, 't');
 	ASSERT (uuCharAt(&str1, offset2) == 't');
 
-	offset3 = uuOffsetOf(&str1, 'g');
+	offset3 = uuFirstOffsetOf(&str1, 'g');
 	ASSERT (uuCharAt(&str1, offset3) == 'g');
 
 	uuFree(&str1);
@@ -314,13 +345,84 @@ void test_Append()
 	ASSERT(uuAppend(&refuseTotal, "Z") == 0);
 	ASSERT(uuAppend(&refuseTotal, "John") == -1);
 	uuFree(&refuseTotal);
+}
 
+void test_AdjustCapacity()
+{
+	UUSTR_HEAP(heap, 32);
+	UUSTR_STACK(stack, 32);
 
+	ASSERT(uuAdjustCapacity(&stack, 31337) == -1);
+	ASSERT(uuAdjustCapacity(&heap, 31337) == 0);
 
+	uuFree(&stack);
+	uuFree(&heap);
+}
+
+void test_CSTR()
+{
+	UUSTR_STACK_CSTR(str, "John Doe");
+	ASSERT(strcmp (uuCSTR(&str), "John Doe") == 0);
+	uuFree(&str);
+}
+
+void test_ByteLength()
+{
+	UUSTR_STACK_CSTR(str, "John Doe");
+	ASSERT(uuByteLength(&str) == 8);
+	uuFree(&str);
+}
+
+void test_CreateFromWSTR()
+{
+	ssize_t bo = 0;
+	UUStr str;
+	uuCreateFromWSTR (&str, L"Räksmörgås", -1);
+
+	ASSERT (uuReadNextChar(&str, &bo) == L'R');
+	ASSERT (uuReadNextChar(&str, &bo) == L'ä');
+	ASSERT (uuReadNextChar(&str, &bo) == L'k');
+	ASSERT (uuReadNextChar(&str, &bo) == L's');
+	ASSERT (uuReadNextChar(&str, &bo) == L'm');
+	ASSERT (uuReadNextChar(&str, &bo) == L'ö');
+	ASSERT (uuReadNextChar(&str, &bo) == L'r');
+	ASSERT (uuReadNextChar(&str, &bo) == L'g');
+	ASSERT (uuReadNextChar(&str, &bo) == L'å');
+	ASSERT (uuReadNextChar(&str, &bo) == L's');
+	uuFree(&str);
 }
 
 
+void test_StartsWith()
+{
+	UUSTR_STACK_CSTR(str, "John Doe");
+	UUSTR_STACK_CSTR(john, "John");
+	UUSTR_STACK_CSTR(filip, "Filip");
 
+	ASSERT(!uuStartsWith(&john, &str));
+	ASSERT(!uuStartsWith(&str, &filip));
+	ASSERT(uuStartsWith(&str, &john));
+
+}
+
+static UCS32 toUpper(UCS32 chr)
+{
+	return (UCS32) towupper( (wchar_t) chr);
+}
+
+void test_Transform()
+{
+	UUStr expected;
+	UUStr str;	
+	
+	uuCreateFromWSTR(&str, L"abcdef", -1);
+	uuCreateFromWSTR(&expected, L"ABCDEF", -1);
+	ASSERT(uuTransform(&str, toUpper) == 0);
+	ASSERT(uuCompare(&str, &expected) == 0);
+
+	uuFree(&expected);
+	uuFree(&str);
+}
 
 int main (int argc, char **argv)
 {
@@ -328,19 +430,28 @@ int main (int argc, char **argv)
 	test_CreateFromUTF8Bytes();
 	test_Compare();
 	test_Clone();
-	test_Find();
+	test_FindFirstOf();
+	test_FindLastOf();
 	test_SubString();
-	test_OffsetOf();
+	test_FirstOffsetOf();
+	test_LastOffsetOf();
 	test_Replace();
 	test_CharAt();
 	test_IsEmpty();
 	test_Append();
 	test_CreateEmpty();
+	test_AdjustCapacity();
+	test_CSTR();
+	test_ByteLength();
+	test_StartsWith();
+	test_Transform();
 
 	//FIXME: Test surrogates pair here!
+	test_CreateFromWSTR();
 	test_CreateFromUTF16Bytes();
 	test_ConvertToUTF16();
 	test_ConvertToUTF32();
 
+	fprintf (stderr, "All tests succeeded!\n");
 	return 0;
 }
