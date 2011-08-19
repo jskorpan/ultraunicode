@@ -33,6 +33,8 @@ typedef struct UUStr
 #define UU_HAS_BYTELENGTH (1 << 0)
 #define UU_MUST_FREE (1 << 1)
 
+
+
 #define UUSTR_STACK(_str, _capacity) \
 	UUStr _str; \
 	UTF8 _uuBuff##_str[_capacity + 1]; \
@@ -53,18 +55,37 @@ typedef struct UUStr
 	UUStr _str; \
 	uuCreateEmpty(&_str, _byteCapacity); \
 
+#define UUSTR_STACK_WSTR(_str, _wstr) \
+	UUStr _str; \
+	UTF8 _uuBuff##_str[(sizeof(_wstr) * 2) + 1]; \
+	_str.ptr = _uuBuff##_str; \
+	_str.flags = UU_HAS_BYTELENGTH; \
+	_str.byteLength = 0; \
+	_str.capacity = (sizeof(_wstr) * 2) + 1; \
+	uuAppend(&_str, _wstr); \
+
+#define UUSTR_SMEMBER_DECL(_str, _byteCapacity) \
+	UUStr _str; \
+	UTF8 _uuBuff##_str[_byteCapacity + 1]; \
+
+#define UUSTR_SMEMBER_INIT(_str) \
+	(this->_str).ptr = this->_uuBuff##_str; \
+	(this->_str).flags = UU_HAS_BYTELENGTH; \
+	(this->_str).byteLength = 0; \
+	(this->_str).capacity = sizeof(this->_uuBuff##_str) - 1; \
+
 /*[X]*/ int uuCreateFromCSTR(UUStr *str, const char *cstr, ssize_t byteLength);
 /*[X]*/ int uuCreateFromUTF8(UUStr *str, const UTF8 *cstr, ssize_t byteLength, ssize_t charLength);
 /*[X]*/ int uuCreateFromUTF16(UUStr *str, const UTF16 *in, ssize_t charLength);
 /*[X]*/ int uuCreateEmpty(UUStr *str, ssize_t byteCapacity);
 /*[X]*/ int uuCreateByClone(UUStr *str, UUStr *input);
-
-
 #if WCHAR_MAX == 0xffff
 /*[X]*/ #define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUTF16(_str, (const UTF16 *) _in, _charLength)
 #else
 /*[ ]*/ #define uuCreateFromWSTR(_str, _in, _charLength) uuCreateFromUCS32(_str, (const UCS32 *) _in, _charLength)
 #endif
+
+
 
 /*[ ]*/ int uuValidate(UUStr *str);
 /*[X]*/ int uuCreateFromUCS32(UUStr *str, const UCS32 *in, ssize_t charLength, ssize_t byteLength);
@@ -78,6 +99,7 @@ typedef struct UUStr
 /*[X]*/ int uuReplace(UUStr *str, UUStr *what, UUStr *with);
 /*[X]*/ int uuAppend(UUStr *str, UUStr *second);
 /*[X]*/ int uuAppend(UUStr *str, const char *second);
+/*[ ]*/ int uuAppend(UUStr *str, const wchar_t *second);
 /*[ ]*/ int uuAppend(UUStr *str, long long value, int radix);
 
 

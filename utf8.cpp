@@ -842,6 +842,70 @@ static void strreverse(UTF8* begin, UTF8* end)
 	aux = *end, *end-- = *begin, *begin++ = aux;
 }
 
+int uuAppend(UUStr *str, const wchar_t *wstr)
+{
+	UCS32 ucs;
+	int iSur = 0;
+	UTF16 surrugate;
+	ssize_t neededCapacity = str->byteLength;
+	const wchar_t *org = wstr;
+	UTF8 *ptr;
+	UTF8 *out;
+
+
+	while ((*wstr++) != '\0')
+	{
+		neededCapacity += 4;
+	}
+	
+	if (neededCapacity > str->capacity)
+	{
+		if (uuAdjustCapacity(str, neededCapacity) == -1)
+		{
+			return -1;
+		}
+	}
+	
+	wstr = org;
+	ptr = str->ptr + str->byteLength;
+	out = ptr;
+
+	while (*wstr != '\0')
+	{
+		ucs = (*wstr++);
+
+		if (iSur == 0)
+		{
+			if ((ucs & 0xfc00) == 0xd800)
+			{
+				surrugate = ucs;
+				iSur ++;
+				continue;
+			}
+
+			iSur = 0;
+		}
+		else
+		{
+			if ((ucs & 0xfc00) != 0xdc00)
+			{
+				return -1;
+			}
+
+			ucs = 0x10000 + (((ucs - 0xd800) << 10) | (surrugate - 0xdc00));
+			iSur = 0;
+		}
+
+		ptr += UCS32ToUTF4(ucs, ptr);
+	}
+
+	(*ptr) = '\0';
+	str->byteLength = (ssize_t) (ptr - out);
+
+	return 0;
+}
+
+
 int uuAppend(UUStr *str, long long value, int radix)
 {
 	static const char radix16[] = "0123456789abcdef";

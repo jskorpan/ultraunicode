@@ -1,4 +1,4 @@
-#include "./public_include/uunicode.h"
+ï»¿#include "./public_include/uunicode.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -230,18 +230,18 @@ void test_CreateFromUTF16Bytes()
 {
 	UUStr str;
 	ssize_t bo = 0;
-	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
+	ASSERT (uuCreateFromWSTR(&str, L"RÃ¤ksmÃ¶rgÃ¥s", 10) == 0);
 	ASSERT (uuByteLength(&str) == 13);
 
 	ASSERT (uuReadNextChar(&str, &bo) == L'R');
-	ASSERT (uuReadNextChar(&str, &bo) == L'ä');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¤');
 	ASSERT (uuReadNextChar(&str, &bo) == L'k');
 	ASSERT (uuReadNextChar(&str, &bo) == L's');
 	ASSERT (uuReadNextChar(&str, &bo) == L'm');
-	ASSERT (uuReadNextChar(&str, &bo) == L'ö');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¶');
 	ASSERT (uuReadNextChar(&str, &bo) == L'r');
 	ASSERT (uuReadNextChar(&str, &bo) == L'g');
-	ASSERT (uuReadNextChar(&str, &bo) == L'å');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¥');
 	ASSERT (uuReadNextChar(&str, &bo) == L's');
 
 	uuFree(&str);
@@ -255,20 +255,20 @@ void test_ConvertToUTF16()
 	UTF16 output[128];
 
 	//FIXME: Test for overflow of output buffer here
-	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
+	ASSERT (uuCreateFromWSTR(&str, L"RÃ¤ksmÃ¶rgÃ¥s", 10) == 0);
 	ASSERT (uuConvertToUTF16(&str, output, sizeof(output), &chOutput) == 0);
 	uuFree(&str);
 	ASSERT (chOutput == 10);
 
 	ASSERT(output[0] == L'R');
-	ASSERT(output[1] == L'ä');
+	ASSERT(output[1] == L'Ã¤');
 	ASSERT(output[2] == L'k');
 	ASSERT(output[3] == L's');
 	ASSERT(output[4] == L'm');
-	ASSERT(output[5] == L'ö');
+	ASSERT(output[5] == L'Ã¶');
 	ASSERT(output[6] == L'r');
 	ASSERT(output[7] == L'g');
-	ASSERT(output[8] == L'å');
+	ASSERT(output[8] == L'Ã¥');
 	ASSERT(output[9] == L's');
 	ASSERT(output[10] == L'\0');
 
@@ -281,20 +281,20 @@ void test_ConvertToUTF32()
 	UCS32 output[128];
 
 	//FIXME: Test for overflow of output buffer here
-	ASSERT (uuCreateFromWSTR(&str, L"Räksmörgås", 10) == 0);
+	ASSERT (uuCreateFromWSTR(&str, L"RÃ¤ksmÃ¶rgÃ¥s", 10) == 0);
 	ASSERT (uuConvertToUCS32(&str, output, sizeof(output), &chOutput) == 0);
 	uuFree(&str);
 	ASSERT (chOutput == 10);
 
 	ASSERT(output[0] == L'R');
-	ASSERT(output[1] == L'ä');
+	ASSERT(output[1] == L'Ã¤');
 	ASSERT(output[2] == L'k');
 	ASSERT(output[3] == L's');
 	ASSERT(output[4] == L'm');
-	ASSERT(output[5] == L'ö');
+	ASSERT(output[5] == L'Ã¶');
 	ASSERT(output[6] == L'r');
 	ASSERT(output[7] == L'g');
-	ASSERT(output[8] == L'å');
+	ASSERT(output[8] == L'Ã¥');
 	ASSERT(output[9] == L's');
 	ASSERT(output[10] == L'\0');
 }
@@ -377,17 +377,17 @@ void test_CreateFromWSTR()
 {
 	ssize_t bo = 0;
 	UUStr str;
-	uuCreateFromWSTR (&str, L"Räksmörgås", -1);
+	uuCreateFromWSTR (&str, L"RÃ¤ksmÃ¶rgÃ¥s", -1);
 
 	ASSERT (uuReadNextChar(&str, &bo) == L'R');
-	ASSERT (uuReadNextChar(&str, &bo) == L'ä');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¤');
 	ASSERT (uuReadNextChar(&str, &bo) == L'k');
 	ASSERT (uuReadNextChar(&str, &bo) == L's');
 	ASSERT (uuReadNextChar(&str, &bo) == L'm');
-	ASSERT (uuReadNextChar(&str, &bo) == L'ö');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¶');
 	ASSERT (uuReadNextChar(&str, &bo) == L'r');
 	ASSERT (uuReadNextChar(&str, &bo) == L'g');
-	ASSERT (uuReadNextChar(&str, &bo) == L'å');
+	ASSERT (uuReadNextChar(&str, &bo) == L'Ã¥');
 	ASSERT (uuReadNextChar(&str, &bo) == L's');
 	uuFree(&str);
 }
@@ -402,8 +402,34 @@ void test_StartsWith()
 	ASSERT(!uuStartsWith(&john, &str));
 	ASSERT(!uuStartsWith(&str, &filip));
 	ASSERT(uuStartsWith(&str, &john));
+}
+
+class TestClass
+{
+	UUSTR_SMEMBER_DECL(m_username, 1024);
+
+public:
+	TestClass()
+	{
+		UUSTR_SMEMBER_INIT(m_username);
+		uuAppend(&m_username, "hejsan");
+	}
+};
+
+
+void test_MacroTest()
+{
+	UUSTR_STACK_CSTR(stack1, "Testing from the hood");
+	UUSTR_STACK(stack2, 1024);
+	UUSTR_HEAP(heap1, 31337);
+	UUSTR_STACK_WSTR(stackwide, L"æ±‰è¯­/æ¼¢èªž");
+
+	TestClass *ptr = new TestClass();
+
+	delete ptr;
 
 }
+
 
 static UCS32 toUpper(UCS32 chr)
 {
@@ -467,6 +493,7 @@ int main (int argc, char **argv)
 	test_StartsWith();
 	test_Transform();
 	test_AppendLong();
+	test_MacroTest();
 
 	//FIXME: Test surrogates pair here!
 	test_CreateFromWSTR();
