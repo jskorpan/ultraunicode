@@ -49,8 +49,6 @@ Deprecated */
 	UUStr _str = { _uuBuff##_str, 0, ((sizeof(_wstr) / sizeof(wchar_t)) * 4) + 1, UU_HAS_BYTELENGTH }; \
 	uuAppend(&_str, _wstr); \
 
-
-
 #define UUHEAP(_str, _byteCapacity) \
 	UUStr _str; \
 	__uuInitHeap(&_str, _byteCapacity); \

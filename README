@@ -1,1 +1,12 @@
 Low level Unicode library for manipulating strings directly in UTF-8.
+
+::Initial benchmarks::
+
+Character iteration:
+std::wstring iteration using iterators 60.6538 mcps 
+UltraUnicode UTF-8 iteration 234.189 mcps
+wchar_t pointer iteration 928.254 mcps
+mcps => million (unicode) characters per second
+
+
+
